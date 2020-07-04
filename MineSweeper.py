@@ -6,6 +6,7 @@ SOLVER LOGIC:
  - Mark mine positions using second level logic (1-1 and 1-2 patterns):
     - Find and store lists of codes on a temp map at unknowns susceptible of being solved using 1-1
     - Go through those locs, checking if 1-1 is present, and open cells
+ - If number of unknowns equals remainder of mines - tag them
 '''
 
 # For colouring in commandline
@@ -23,11 +24,10 @@ class colors:
     UNKNOWN = "\x1b[1;34;40m"
     END = '\x1b[0m'
 
-import re
+### Kata Solution code
 import numpy as np
 from collections import Counter
 
-### Kata Solution code
 # Utility function returns positions of valid adjacent cells
 def near(pos, ALL_LOCS):
     # Create a set all cell positions around center (not including it)
@@ -50,19 +50,23 @@ def solve_mine(map, n):
     opened = set() # Opened positions
     foundMines = 0
 
-    fancyPrint(board, resolved)
+    # fancyPrint(board, resolved)
 
-    MAX_LOOPS = 4
+    MAX_LOOPS = 20
+    didSomething = True
 
     i = 0
-    while (foundMines < n) & (i < MAX_LOOPS):
+    while (foundMines < n) & (i < MAX_LOOPS) & didSomething:
+        didSomething = False
+
         ## Reveal cells around '0' cells
         for cell in set(tuple(pos) for pos in np.argwhere(board == "0")) - resolved:
             resolved.add(tuple(cell))
             for adjacent in near(cell, ALL_LOCS) - resolved - opened:
                 board[adjacent] = open(*adjacent)
                 opened.add(adjacent)
-                print(f"[{i}] Opened {adjacent} thanks to 0 cell")
+                # print(f"[{i}] Opened {adjacent} thanks to 0 cell")
+                didSomething = True
 
         # fancyPrint(board, resolved)
 
@@ -82,7 +86,8 @@ def solve_mine(map, n):
                 mines |= unknown
                 resolved.add(cell) # Satisfied cells are resolved
                 resolved |= unknown # Marked mines are resolved
-                print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
+                # print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
+                didSomething = True
 
         # Apply mine positions
         while mines:
@@ -99,7 +104,8 @@ def solve_mine(map, n):
             if int(board[cell]) == tagged:
                 for pos in [pos for pos in adjacent if board[pos] == "?"]:
                     board[pos] = open(*pos)
-                    print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
+                    # print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
+                    didSomething = True
 
         # fancyPrint(board, resolved)
 
@@ -142,16 +148,30 @@ def solve_mine(map, n):
                 for code in codes:
                     if not match in code[0]:
                         board[code[1]] = open(*code[1])
-                        print(f"[{i}] Opened {code[1]} thanks to 1-1 logic")
+                        # print(f"[{i}] Opened {code[1]} thanks to 1-1 logic")
+                        didSomething = True
 
-        fancyPrint(board, resolved)
+        # If number of unknowns equals remainder of mines - tag them
+        if len(np.where(board == "?")) == n - foundMines:
+            foundMines = n
+            for cell in np.argwhere(board == "?"):
+                board[cell] = "*"
+
+        # fancyPrint(board, resolved)
         i += 1
 
     # Handle exit condtion
-    if i == MAX_LOOPS:
-        print("Loops exceeded - had to exit prematurely")
     if foundMines == n:
         print("SUCCESS! Found all the mines")
+        return "\n".join([' '.join(line) for line in board]).replace('*', "x")
+
+    if i == MAX_LOOPS:
+        print("Max Loops exceeded")
+        return "?"
+
+    if not didSomething:
+        print("NoActionPerformed: Start of infinite looping caught - Aborted")
+        return "?"
 
 ### Cached function in the kata (have to recode for testing here)
 def open(row, column):
@@ -188,10 +208,10 @@ def fancyPrint(board, resolved):
 
 ### Testing
 from tests import tests
+import re
 
-i = 1
-
-gamemap, result = (tests[i]["gamemap"], tests[i]["result"])
+testID = 0
+gamemap, result = (tests[testID]["gamemap"], tests[testID]["result"])
 
 # Find number of mines
 n = re.split('\s|\n', result).count('x')
@@ -199,4 +219,5 @@ n = re.split('\s|\n', result).count('x')
 # Format result in a usable way for the open function
 result = [row.split(' ') for row in result.split("\n")]
 # Solve the game
-solve_mine(gamemap, n)
+ans = solve_mine(gamemap, n)
+print(ans)
