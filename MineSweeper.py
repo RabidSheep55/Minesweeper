@@ -52,8 +52,10 @@ def solve_mine(map, n):
 
     fancyPrint(board, resolved)
 
+    MAX_LOOPS = 4
+
     i = 0
-    while foundMines < n:
+    while (foundMines < n) & (i < MAX_LOOPS):
         ## Reveal cells around '0' cells
         for cell in set(tuple(pos) for pos in np.argwhere(board == "0")) - resolved:
             resolved.add(tuple(cell))
@@ -62,7 +64,7 @@ def solve_mine(map, n):
                 opened.add(adjacent)
                 print(f"[{i}] Opened {adjacent} thanks to 0 cell")
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Mark mine positions using first level logic
         mines = set()
@@ -86,7 +88,7 @@ def solve_mine(map, n):
         while mines:
             board[mines.pop()] = "*"
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Open all cells around those which have the right amount of mines tagged
         for cell in set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved:
@@ -99,7 +101,7 @@ def solve_mine(map, n):
                     board[pos] = open(*pos)
                     print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Mark mine positions using second level logic (1-1 and 1-2 patterns)
         # 1-1 Pattern: If a current cell's mine count will be satisfied by all
@@ -145,6 +147,11 @@ def solve_mine(map, n):
         fancyPrint(board, resolved)
         i += 1
 
+    # Handle exit condtion
+    if i == MAX_LOOPS:
+        print("Loops exceeded - had to exit prematurely")
+    if foundMines == n:
+        print("SUCCESS! Found all the mines")
 
 ### Cached function in the kata (have to recode for testing here)
 def open(row, column):
@@ -180,23 +187,11 @@ def fancyPrint(board, resolved):
     print()
 
 ### Testing
-gamemap = """
-? ? ? ? ? ?
-? ? ? ? ? ?
-? ? ? 0 ? ?
-? ? ? ? ? ?
-? ? ? ? ? ?
-0 0 0 ? ? ?
-""".strip()
+from tests import tests
 
-result = """
-1 x 1 1 x 1
-2 2 2 1 2 2
-2 x 2 0 1 x
-2 x 2 1 2 2
-1 1 1 1 x 1
-0 0 0 1 1 1
-""".strip()
+i = 1
+
+gamemap, result = (tests[i]["gamemap"], tests[i]["result"])
 
 # Find number of mines
 n = re.split('\s|\n', result).count('x')
