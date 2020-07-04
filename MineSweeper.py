@@ -147,7 +147,7 @@ def solve_mine(map, n):
             for match in matches:
                 for code in codes:
                     if not match in code[0]:
-                        board[code[1]] = open(*code[1])
+                        board[code[1]] = open(*code[1], board, resolved)
                         print(f"[{i}] Opened {code[1]} thanks to 1-1 logic")
                         didSomething = True
 
@@ -156,6 +156,7 @@ def solve_mine(map, n):
             foundMines = n
             for cell in np.argwhere(board == "?"):
                 board[tuple(cell)] = "*"
+                resolved.add(cell)
             print(f"[{i}] Marked all remaining unknowns as they have to be mines")
 
         fancyPrint(board, resolved)
@@ -175,10 +176,12 @@ def solve_mine(map, n):
         return "?"
 
 ### Cached function in the kata (have to recode for testing here)
-def open(row, column):
+def open(row, column, board=None, resolved=None):
     val = result[row][column]
     if val == 'x':
         print(f"Game over, exploded mine at {(column, row)}")
+        board[column, row] = "💣"
+        fancyPrint(board, resolved)
         quit()
     else:
         return val
