@@ -65,20 +65,24 @@ def solve_mine(map, n):
         fancyPrint(board, resolved)
 
         ## Mark mine positions using first level logic
-        mines = []
+        mines = set()
         for cell in set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved:
             adjacent = near(cell, ALL_LOCS)
-            possible = [pos for pos in adjacent if (board[pos] == "?" or board[pos] == "*")]
+            marked = set([pos for pos in adjacent if board[pos] == "*"])
+            unknown = set([pos for pos in adjacent if board[pos] == "?"])
 
+            # No unknown cells around, the cell is resolved
+            if not len(unknown):
+                resolved.add(cell)
             # Number of possible adjacent mines corresponds to number on center
-            if int(board[cell]) == len(possible):
+            elif (int(board[cell]) == len(marked | unknown)) & len(unknown - resolved):
                 foundMines += 1
-                mines += possible
+                mines |= unknown
                 resolved.add(cell) # Satisfied cells are resolved
-                print(f"[{i}] Marked {possible} thanks to 1st level logic from {cell}")
+                resolved |= unknown # Marked mines are resolved
+                print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
 
         # Apply mine positions
-        resolved |= set(mines) # Marked mines are resolved cells
         while mines:
             board[mines.pop()] = "*"
 
