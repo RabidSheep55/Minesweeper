@@ -59,7 +59,7 @@ def solve_mine(map, n):
 
     i = 0
     # Iterate while more mines to find or board not fully revelead, and not stuck in infinite loop
-    while ((foundMines < n) | unknownsRemaining) & (i < MAX_LOOPS) & didSomething:
+    while ((foundMines != n) | unknownsRemaining) & (i < MAX_LOOPS) & didSomething:
         didSomething = False
 
         ## Reveal cells around '0' cells
@@ -85,10 +85,10 @@ def solve_mine(map, n):
                 resolved.add(cell)
             # Number of possible adjacent mines corresponds to number on center
             elif (int(board[cell]) == len(marked | unknown)) & len(unknown - resolved):
-                foundMines += 1
-                mines |= unknown
+                foundMines += len(unknown - resolved)
+                mines |= unknown - resolved
                 resolved.add(cell) # Satisfied cells are resolved
-                resolved |= unknown # Marked mines are resolved
+                resolved |= unknown  # Marked mines are resolved
                 print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
                 didSomething = True
 
@@ -160,8 +160,8 @@ def solve_mine(map, n):
         # If number of unknowns equals remainder of mines - tag them
         # NOTE: Using np.where here instead of argwhere will cause the count of '?' to be one less than reality for some reason...
         unknowns = np.argwhere(board == "?")
-        if (len(unknowns) == n - foundMines) & len(unknowns):
-            foundMines = n
+        if (len(unknowns) == n - foundMines) & bool(len(unknowns)):
+            foundMines += len(unknowns)
             for cell in unknowns:
                 board[tuple(cell)] = "*"
                 resolved.add(tuple(cell))
@@ -175,7 +175,7 @@ def solve_mine(map, n):
 
     # Handle exit condtions
     if foundMines == n:
-        print(f"SUCCESS! Found all the mines after {i} iterations")
+        print(f"SUCCESS! Found {foundMines}/{n} the mines after {i} iterations")
         return "\n".join([' '.join(line) for line in board]).replace('*', "x")
 
     if i == MAX_LOOPS:
@@ -212,7 +212,7 @@ def fancyPrint(board, resolved, highlight=[]):
         for item in row:
             if (i, j) in highlight:
                 print(f"{colors.HIGHLIGHT}{item}{colors.END}", end=" ")
-            elif item == "*":
+            elif item == "*" or item == "x":
                 print(f"{colors.MINE}*{colors.END}", end=" ")
             elif item == "?":
                 print(f"{colors.UNKNOWN}?{colors.END}", end=" ")
