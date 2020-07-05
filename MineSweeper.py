@@ -51,7 +51,7 @@ def solve_mine(map, n):
     opened = set() # Opened positions
     foundMines = 0
 
-    fancyPrint(board, resolved)
+    # fancyPrint(board, resolved)
 
     MAX_LOOPS = 20
     didSomething = True
@@ -68,10 +68,10 @@ def solve_mine(map, n):
             for adjacent in near(cell, ALL_LOCS) - resolved - opened:
                 board[adjacent] = open(*adjacent)
                 opened.add(adjacent)
-                print(f"[{i}] Opened {adjacent} thanks to 0 cell")
+                # print(f"[{i}] Opened {adjacent} thanks to 0 cell")
                 didSomething = True
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Mark mine positions using first level logic
         mines = set()
@@ -89,14 +89,14 @@ def solve_mine(map, n):
                 mines |= unknown - resolved
                 resolved.add(cell) # Satisfied cells are resolved
                 resolved |= unknown  # Marked mines are resolved
-                print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
+                # print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
                 didSomething = True
 
         # Apply mine positions
         while mines:
             board[mines.pop()] = "*"
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Open all cells around those which have the right amount of mines tagged
         for cell in set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved:
@@ -107,10 +107,10 @@ def solve_mine(map, n):
             if int(board[cell]) == tagged:
                 for pos in [pos for pos in adjacent if board[pos] == "?"]:
                     board[pos] = open(*pos)
-                    print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
+                    # print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
                     didSomething = True
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         ## Select and open safe cells using second level logic (1-1 pattern)
         # 1-1 Pattern: If a current cell's mine count will be satisfied by all
@@ -128,7 +128,7 @@ def solve_mine(map, n):
             if (int(board[cell]) - len(mines) == 1) & (len(unknowns) != 1):
                 highlighted.add(cell)
                 # Add unique codes to unknowns around cell to perform logic later
-                code = str(cell[0]*10 + cell[1])
+                code = str(cell[0]) + str(cell[1])
                 placed[code] = len(unknowns) # To compare with Counter later
                 for pos in unknowns:
                     if type(temp[pos]) == str:
@@ -137,9 +137,10 @@ def solve_mine(map, n):
                         temp[pos] += [code]
 
         # Process the highlighted cells
+        opened = set()
         for cell in highlighted:
             adjacent = near(cell, ALL_LOCS)
-            curr = str(cell[0]*10 + cell[1]) # Current cell code
+            curr = str(cell[0]) + str(cell[1]) # Current cell code
 
             # Fetch code lists surrounding the current cell
             codes = [(temp[pos], pos) for pos in adjacent if type(temp[pos]) == list]
@@ -150,12 +151,13 @@ def solve_mine(map, n):
             # Open all cells which don't contain the matched codes
             for match in matches:
                 for code in codes:
-                    if not match in code[0]:
+                    if (not match in code[0]) & (not code[1] in opened):
+                        # print(f"[{i}] Opening {code[1]} thanks to 1-1 logic from {cell}")
+                        opened.add(code[1])
                         board[code[1]] = open(*code[1])
-                        print(f"[{i}] Opened {code[1]} thanks to 1-1 logic")
                         didSomething = True
 
-        fancyPrint(board, resolved)
+        # fancyPrint(board, resolved)
 
         # If number of unknowns equals remainder of mines - tag them
         # NOTE: Using np.where here instead of argwhere will cause the count of '?' to be one less than reality for some reason...
@@ -165,7 +167,7 @@ def solve_mine(map, n):
             for cell in unknowns:
                 board[tuple(cell)] = "*"
                 resolved.add(tuple(cell))
-            print(f"[{i}] Marked all remaining unknowns as they have to be mines")
+            # print(f"[{i}] Marked all remaining unknowns as they have to be mines")
 
         # Check if unknowns are remaining (sometimes required when all mines are found but not all cells are revealed)
         unknownsRemaining = bool(len(unknowns))
@@ -180,7 +182,7 @@ def solve_mine(map, n):
 
     if i == MAX_LOOPS:
         print("Max Loops exceeded")
-        return "?"
+        return "MAX LOOPS EXCEEDED"
 
     if not didSomething:
         print(f"NoActionPerformed: Start of infinite looping caught - Aborted at {i}")
@@ -191,8 +193,8 @@ def open(row, column, board=None, resolved=None, highlight=[]):
     val = result[row][column]
     if val == 'x':
         print(f"Game over, exploded mine at {(row, column)}")
-        board[row, column] = "#"
-        fancyPrint(board, resolved, highlight + [(row, column)])
+        # board[row, column] = "#"
+        # fancyPrint(board, resolved, highlight + [(row, column)])
         quit()
     else:
         return val
@@ -229,7 +231,8 @@ def fancyPrint(board, resolved, highlight=[]):
 from tests import tests
 import re
 
-testID = 0
+# FAILS: 8, 9 <- TODO: Implement 1-2 second level logic pattern!!!!
+testID = 9
 gamemap, result = (tests[testID]["gamemap"], tests[testID]["result"])
 
 # Find number of mines
