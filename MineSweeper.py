@@ -22,6 +22,7 @@ class colors:
     MINE = '\x1b[1;31;40m'
     RESOLVED = '\x1b[1;32;40m'
     UNKNOWN = "\x1b[1;34;40m"
+    HIGHLIGHT = '\x1b[1;35;40m'
     END = '\x1b[0m'
 
 ### Kata Solution code
@@ -120,8 +121,9 @@ def solve_mine(map, n):
             mines = [pos for pos in adjacent if board[pos] == "*"]
             unknowns = [pos for pos in adjacent if board[pos] == "?"]
 
-            # Effective value of cell is 1?
-            if int(board[cell]) - len(mines) == 1:
+            # Effective value of cell is 1 and can not be solved using first level
+            # NOTE: could technically open cell - come back here when needing more speed
+            if (int(board[cell]) - len(mines) == 1) & (len(unknowns) != 1):
                 highlighted.add(cell)
                 # Add unique codes to unknowns around cell to perform logic later
                 code = str(cell[0]*10 + cell[1])
@@ -147,7 +149,7 @@ def solve_mine(map, n):
             for match in matches:
                 for code in codes:
                     if not match in code[0]:
-                        board[code[1]] = open(*code[1], board, resolved)
+                        board[code[1]] = open(*code[1], board)
                         print(f"[{i}] Opened {code[1]} thanks to 1-1 logic")
                         didSomething = True
 
@@ -176,12 +178,12 @@ def solve_mine(map, n):
         return "?"
 
 ### Cached function in the kata (have to recode for testing here)
-def open(row, column, board=None, resolved=None):
+def open(row, column, board=None, resolved=None, highlight=[]):
     val = result[row][column]
     if val == 'x':
-        print(f"Game over, exploded mine at {(column, row)}")
-        board[column, row] = "💣"
-        fancyPrint(board, resolved)
+        print(f"Game over, exploded mine at {(row, column)}")
+        board[row, column] = "#"
+        fancyPrint(board, resolved, highlight + [(row, column)])
         quit()
     else:
         return val
@@ -194,12 +196,14 @@ def pr(A):
     print()
 
 # Print board with colors
-def fancyPrint(board, resolved):
+def fancyPrint(board, resolved, highlight=[]):
     i = 0
     for row in board:
         j = 0
         for item in row:
-            if item == "*":
+            if (i, j) in highlight:
+                print(f"{colors.HIGHLIGHT}{item}{colors.END}", end=" ")
+            elif item == "*":
                 print(f"{colors.MINE}*{colors.END}", end=" ")
             elif item == "?":
                 print(f"{colors.UNKNOWN}?{colors.END}", end=" ")
