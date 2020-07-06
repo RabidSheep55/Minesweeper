@@ -166,35 +166,34 @@ def solve_mine(map, n):
 
         fancyPrint(board, resolved)
 
-        if i == 1:
-            # Tag effectiveTwo cells which match the 1-2 pattern
-            for cell in effectiveTwos:
-                adjacent = near(cell, ALL_LOCS)
-                curr = str(cell[0]) + str(cell[1]) # Current cell code
+        # Tag effectiveTwo cells which match the 1-2 pattern
+        for cell in effectiveTwos:
+            adjacent = near(cell, ALL_LOCS)
+            curr = str(cell[0]) + str(cell[1]) # Current cell code
 
-                # Fetch unknown that might have not been tagged in temp
-                unknown = [pos for pos in adjacent if temp[pos] == "?"]
-                # Fetch code lists surrounding the current cell
-                codes = [(temp[pos], pos) for pos in adjacent if type(temp[pos]) == list]
-                # Flatten and warp with Counter
-                count = Counter([code for pos in codes for code in pos[0]])
-                # (cell sees all placed codes from a cell) (that isnt itself) (that would lead to marking unknowns (num of unknowns is len(codes)))
-                matches = [code for code in count.keys() if (count[code] == placed[code]) & (code != curr)]
+            # Fetch unknown that might have not been tagged in temp
+            unknown = [pos for pos in adjacent if temp[pos] == "?"]
+            # Fetch code lists surrounding the current cell
+            codes = [(temp[pos], pos) for pos in adjacent if type(temp[pos]) == list]
+            # Flatten and warp with Counter
+            count = Counter([code for pos in codes for code in pos[0]])
+            # (cell sees all placed codes from a cell) (that isnt itself) (that would lead to marking unknowns (num of unknowns is len(codes)))
+            matches = [code for code in count.keys() if (count[code] == placed[code]) & (code != curr)]
 
-                # Mark all cells which don't contain the matched codes
-                for match in matches:
-                    for code in codes:
-                        if (not match in code[0]) & (not code[1] in resolved):
-                            resolved.add(code[1])
-                            board[code[1]] = "*"
-                            print(f"[{i}] Marking {code[1]} thanks to 1-2 logic from {cell}")
-                            didSomething = True
-                    # There's a match - the cell to mark has to be the only unknown
-                    if len(unknown):
-                        resolved.add(unknown[0])
-                        board[unknown[0]] = "*"
-                        print(f"[{i}] Marking {unknown[0]} thanks to 1-2 logic from {cell}")
+            # Mark all cells which don't contain the matched codes
+            for match in matches:
+                for code in codes:
+                    if (not match in code[0]) & (not code[1] in resolved):
+                        resolved.add(code[1])
+                        board[code[1]] = "*"
+                        print(f"[{i}] Marking {code[1]} thanks to 1-2 logic from {cell}")
                         didSomething = True
+                # There's a match - the cell to mark has to be the only unknown
+                if len(unknown):
+                    resolved.add(unknown[0])
+                    board[unknown[0]] = "*"
+                    print(f"[{i}] Marking {unknown[0]} thanks to 1-2 logic from {cell}")
+                    didSomething = True
 
 
         # If number of unknowns equals remainder of mines - tag them
