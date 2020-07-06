@@ -4,8 +4,9 @@ SOLVER LOGIC:
  - Mark mine positions using first level logic
  - Open all cells around those which have the right amount of mines tagged
  - Select and open safe cells using second level logic (1-1 pattern):
-    - Find and store lists of codes on a temp map at unknowns susceptible of being solved using 1-1
-    - Go through those locs, checking if 1-1 is present, and open cells
+    - Find and store lists of codes on a temp map at unknowns susceptible of being solved using 1-1,
+      (while doing so, mark effective 2 cells to use for 1-2 checking later)
+    - Go through those locs, checking if 1-1 or 1-2 is present, and open cells accordingly
  - If number of unknowns equals remainder of mines - tag them
 '''
 
@@ -51,7 +52,7 @@ def solve_mine(map, n):
     opened = set() # Opened positions
     foundMines = 0
 
-    # fancyPrint(board, resolved)
+    fancyPrint(board, resolved)
 
     MAX_LOOPS = 20
     didSomething = True
@@ -68,10 +69,10 @@ def solve_mine(map, n):
             for adjacent in near(cell, ALL_LOCS) - resolved - opened:
                 board[adjacent] = open(*adjacent)
                 opened.add(adjacent)
-                # print(f"[{i}] Opened {adjacent} thanks to 0 cell")
+                print(f"[{i}] Opened {adjacent} thanks to 0 cell")
                 didSomething = True
 
-        # fancyPrint(board, resolved)
+        fancyPrint(board, resolved)
 
         ## Mark mine positions using first level logic
         mines = set()
@@ -89,14 +90,14 @@ def solve_mine(map, n):
                 mines |= unknown - resolved
                 resolved.add(cell) # Satisfied cells are resolved
                 resolved |= unknown  # Marked mines are resolved
-                # print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
+                print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
                 didSomething = True
 
         # Apply mine positions
         while mines:
             board[mines.pop()] = "*"
 
-        # fancyPrint(board, resolved)
+        fancyPrint(board, resolved)
 
         ## Open all cells around those which have the right amount of mines tagged
         for cell in set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved:
@@ -107,16 +108,18 @@ def solve_mine(map, n):
             if int(board[cell]) == tagged:
                 for pos in [pos for pos in adjacent if board[pos] == "?"]:
                     board[pos] = open(*pos)
-                    # print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
+                    print(f"[{i}] Opened {pos} thanks to satifed cell {cell}")
                     didSomething = True
 
-        # fancyPrint(board, resolved)
+        fancyPrint(board, resolved)
 
-        ## Select and open safe cells using second level logic (1-1 pattern)
+        ## Select and open safe cells using second level logic (1-1 and 1-2 patterns)
         # 1-1 Pattern: If a current cell's mine count will be satisfied by all
         # mine placement options from another cell - then we can safely open the rest
+        # Also selecting all effective 2 cells to use for 1-2 logic later
         temp = np.copy(board).astype(np.dtype(list)) # Temporary board to mark cells
-        highlighted = set() # Cells on which the 1-1 is going to be checked
+        effectiveOnes = set() # Cells on which the 1-1 is going to be checked
+        effectiveTwos = set() # Cells on which the 1-2 is going to be checked
         placed = {} # Dict tracks how many of each code was placed
         for cell in set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved:
             adjacent = near(cell, ALL_LOCS)
@@ -126,7 +129,7 @@ def solve_mine(map, n):
             # Effective value of cell is 1 and can not be solved using first level
             # NOTE: could technically open cell - come back here when needing more speed
             if (int(board[cell]) - len(mines) == 1) & (len(unknowns) != 1):
-                highlighted.add(cell)
+                effectiveOnes.add(cell)
                 # Add unique codes to unknowns around cell to perform logic later
                 code = str(cell[0]) + str(cell[1])
                 placed[code] = len(unknowns) # To compare with Counter later
@@ -135,10 +138,14 @@ def solve_mine(map, n):
                         temp[pos] = [code]
                     else:
                         temp[pos] += [code]
+            # Effective value of cell is 2 and can not be solved using first level
+            if (int(board[cell]) - len(mines) == 2) & (len(unknowns) == 3):
+                effectiveTwos.add(cell)
 
-        # Process the highlighted cells
+
+        # Process the effectiveOnes cells - open valid 1-1 patterns
         opened = set()
-        for cell in highlighted:
+        for cell in effectiveOnes:
             adjacent = near(cell, ALL_LOCS)
             curr = str(cell[0]) + str(cell[1]) # Current cell code
 
@@ -152,12 +159,43 @@ def solve_mine(map, n):
             for match in matches:
                 for code in codes:
                     if (not match in code[0]) & (not code[1] in opened):
-                        # print(f"[{i}] Opening {code[1]} thanks to 1-1 logic from {cell}")
+                        print(f"[{i}] Opening {code[1]} thanks to 1-1 logic from {cell}")
                         opened.add(code[1])
                         board[code[1]] = open(*code[1])
                         didSomething = True
 
-        # fancyPrint(board, resolved)
+        fancyPrint(board, resolved)
+
+        if i == 1:
+            # Tag effectiveTwo cells which match the 1-2 pattern
+            for cell in effectiveTwos:
+                adjacent = near(cell, ALL_LOCS)
+                curr = str(cell[0]) + str(cell[1]) # Current cell code
+
+                # Fetch unknown that might have not been tagged in temp
+                unknown = [pos for pos in adjacent if temp[pos] == "?"]
+                # Fetch code lists surrounding the current cell
+                codes = [(temp[pos], pos) for pos in adjacent if type(temp[pos]) == list]
+                # Flatten and warp with Counter
+                count = Counter([code for pos in codes for code in pos[0]])
+                # (cell sees all placed codes from a cell) (that isnt itself) (that would lead to marking unknowns (num of unknowns is len(codes)))
+                matches = [code for code in count.keys() if (count[code] == placed[code]) & (code != curr)]
+
+                # Mark all cells which don't contain the matched codes
+                for match in matches:
+                    for code in codes:
+                        if (not match in code[0]) & (not code[1] in resolved):
+                            resolved.add(code[1])
+                            board[code[1]] = "*"
+                            print(f"[{i}] Marking {code[1]} thanks to 1-2 logic from {cell}")
+                            didSomething = True
+                    # There's a match - the cell to mark has to be the only unknown
+                    if len(unknown):
+                        resolved.add(unknown[0])
+                        board[unknown[0]] = "*"
+                        print(f"[{i}] Marking {unknown[0]} thanks to 1-2 logic from {cell}")
+                        didSomething = True
+
 
         # If number of unknowns equals remainder of mines - tag them
         # NOTE: Using np.where here instead of argwhere will cause the count of '?' to be one less than reality for some reason...
@@ -167,7 +205,7 @@ def solve_mine(map, n):
             for cell in unknowns:
                 board[tuple(cell)] = "*"
                 resolved.add(tuple(cell))
-            # print(f"[{i}] Marked all remaining unknowns as they have to be mines")
+            print(f"[{i}] Marked all remaining unknowns as they have to be mines")
 
         # Check if unknowns are remaining (sometimes required when all mines are found but not all cells are revealed)
         unknownsRemaining = bool(len(unknowns))
@@ -232,7 +270,7 @@ from tests import tests
 import re
 
 # FAILS: 8, 9 <- TODO: Implement 1-2 second level logic pattern!!!!
-testID = 9
+testID = 8
 gamemap, result = (tests[testID]["gamemap"], tests[testID]["result"])
 
 # Find number of mines
