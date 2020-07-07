@@ -8,6 +8,7 @@ SOLVER LOGIC:
       (while doing so, mark effective 2 cells to use for 1-2 checking later)
     - Go through those locs, checking if 1-1 or 1-2 is present, and open cells accordingly
  - If number of unknowns equals remainder of mines - tag them
+ - If there's only one mine left, mark position which satisfies all unresolved cells
 '''
 
 # For colouring in commandline
@@ -56,11 +57,10 @@ def solve_mine(map, n):
 
     MAX_LOOPS = 20
     didSomething = True
-    unknownsRemaining = True
 
     i = 0
     # Iterate while more mines to find or board not fully revelead, and not stuck in infinite loop
-    while ((foundMines != n) | unknownsRemaining) & (i < MAX_LOOPS) & didSomething:
+    while (foundMines != n) & (i < MAX_LOOPS) & didSomething:
         didSomething = False
 
         ## Reveal cells around '0' cells
@@ -93,6 +93,12 @@ def solve_mine(map, n):
                 print(f"[{i}] Marking {unknown} thanks to 1st level logic from {cell}")
                 didSomething = True
 
+            # FOR DEBUGGING
+            # elif (int(board[cell]) < len(marked)):
+            #     print(f"[{i}] CELL {cell} OVERLOADED")
+            #     fancyPrint(board, resolved, [cell])
+            #     quit()
+
         # Apply mine positions
         while mines:
             board[mines.pop()] = "*"
@@ -113,7 +119,7 @@ def solve_mine(map, n):
 
         fancyPrint(board, resolved)
 
-        ## Select and open safe cells using second level logic (1-1 and 1-2 patterns)
+        ## Select and open/mark cells using second level logic (1-1 and 1-2 patterns)
         # 1-1 Pattern: If a current cell's mine count will be satisfied by all
         # mine placement options from another cell - then we can safely open the rest
         # Also selecting all effective 2 cells to use for 1-2 logic later
@@ -184,16 +190,23 @@ def solve_mine(map, n):
             for match in matches:
                 for code in codes:
                     if (not match in code[0]) & (not code[1] in resolved):
+                        foundMines += 1
                         resolved.add(code[1])
                         board[code[1]] = "*"
                         print(f"[{i}] Marking {code[1]} thanks to 1-2 logic from {cell}")
                         didSomething = True
+
                 # There's a match - the cell to mark has to be the only unknown
                 if len(unknown):
-                    resolved.add(unknown[0])
-                    board[unknown[0]] = "*"
-                    print(f"[{i}] Marking {unknown[0]} thanks to 1-2 logic from {cell}")
-                    didSomething = True
+                    if not unknown[0] in resolved:
+                        foundMines += 1
+                        resolved.add(unknown[0])
+                        board[unknown[0]] = "*"
+                        print(f"[{i}] Marking {unknown[0]} thanks to 1-2 logic from {cell}")
+                        didSomething = True
+                        break
+
+
 
 
         # If number of unknowns equals remainder of mines - tag them
@@ -206,11 +219,34 @@ def solve_mine(map, n):
                 resolved.add(tuple(cell))
             print(f"[{i}] Marked all remaining unknowns as they have to be mines")
 
-        # Check if unknowns are remaining (sometimes required when all mines are found but not all cells are revealed)
-        unknownsRemaining = bool(len(unknowns))
+        # If there's only one mine left, mark position which satisfies all unresolved cells
+        elif n - foundMines == 1:
+            unresolved = set(tuple(pos) for pos in np.argwhere(board != "?")) - resolved
+            codes = set([str(pos[0]) + str(pos[1]) for pos in unresolved])
+
+            # If a cell contains all codes from unresolved cells, its the final mine
+            for cell in unknowns:
+                print(cell)
+                if set(temp[tuple(cell)]) == codes:
+                    foundMines += 1
+                    resolved.add(tuple(cell))
+                    board[tuple(cell)] = "*"
+                    print(f"[{i}] Marked last mine as it satifies all unresolved cells")
+
+        # Game is over, just need to relveal remaining unknowns
+        unknowns = np.argwhere(board == "?")
+        if (foundMines == n):
+            for cell in unknowns:
+                cell = tuple(cell)
+                board[cell] = open(*cell)
+                resolved.add(cell)
+            print(f"[{i}] Opened all remaining cells, all mines found")
+
 
         fancyPrint(board, resolved)
         i += 1
+
+
 
     # Handle exit condtions
     if foundMines == n:
@@ -222,7 +258,8 @@ def solve_mine(map, n):
         return "MAX LOOPS EXCEEDED"
 
     if not didSomething:
-        print(f"NoActionPerformed: Start of infinite looping caught - Aborted at {i}")
+        print(f"NoActionPerformed: Start of infinite looping caught - Aborted at {i} iterations")
+        print(f"{foundMines}/{n} found mines")
         return "?"
 
 ### Cached function in the kata (have to recode for testing here)
@@ -268,8 +305,10 @@ def fancyPrint(board, resolved, highlight=[]):
 from tests import tests
 import re
 
-# FAILS: 8, 9 <- TODO: Implement 1-2 second level logic pattern!!!!
-testID = 8
+# 2, 3 are 50%, should return "?"
+# FAILS: 9, 12
+# 13 requires endgame low mine count logic
+testID = 12
 gamemap, result = (tests[testID]["gamemap"], tests[testID]["result"])
 
 # Find number of mines
@@ -279,4 +318,4 @@ n = re.split('\s|\n', result).count('x')
 result = [row.split(' ') for row in result.split("\n")]
 # Solve the game
 ans = solve_mine(gamemap, n)
-print(ans)
+# fancyPrint(result, set())
